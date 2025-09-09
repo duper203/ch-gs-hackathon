@@ -11,13 +11,20 @@ import PyPDF2
 import docx
 import io
 
+# Import templates from separate file
+from templates import (
+    DEMO_CONTENT_TEMPLATE,
+    DEMO_EMAIL_TEMPLATE, 
+    SYSTEM_PROMPT_TEMPLATE,
+    USER_PROMPT_TEMPLATE,
+    get_predefined_templates
+)
+
 # Load environment variables
 load_dotenv()
 
-# Configure OpenAI
+# Configure APIs
 openai.api_key = os.getenv("OPENAI_API_KEY", "demo_key")
-
-# Configure MISO API
 MISO_API_KEY = os.getenv("MISO_API_KEY", "")
 MISO_DATASET_ID = os.getenv("MISO_DATASET_ID", "")
 MISO_BASE_URL = "https://api.holdings.miso.gs/ext/v1"
@@ -32,6 +39,8 @@ st.set_page_config(
 # Create data directory if it doesn't exist
 DATA_DIR = Path("tf_projects")
 DATA_DIR.mkdir(exist_ok=True)
+
+
 
 def save_project_file(project_name, filename, content, template_used):
     """Save processed file content to project folder"""
@@ -63,6 +72,7 @@ def save_project_file(project_name, filename, content, template_used):
     
     return file_path, generated_filename
 
+
 def get_project_files(project_name):
     """Get all files for a specific project"""
     project_dir = DATA_DIR / project_name
@@ -86,6 +96,7 @@ def get_all_projects():
         return []
     return [d.name for d in DATA_DIR.iterdir() if d.is_dir()]
 
+
 def delete_project_file(project_name, file_index):
     """Delete a specific file from project"""
     project_dir = DATA_DIR / project_name
@@ -97,6 +108,7 @@ def delete_project_file(project_name, file_index):
         files[file_index].unlink()
         return True
     return False
+
 
 def delete_entire_project(project_name):
     """Delete entire project and all its files"""
@@ -112,150 +124,6 @@ def delete_entire_project(project_name):
     project_dir.rmdir()
     return True
 
-def get_predefined_templates():
-    """Get predefined templates"""
-    templates = {
-        "아마존 6 Pager 문서 구조 (사업 계획)": """# 아마존 6 Pager 문서 구조: 사업 계획 Ver.
-
-## 1. 소개 (Introduction)
-- **프로젝트 개요**: 이런 프로젝트를 하려고 합니다
-- **배경**: 
-- **필요성**: 
-
-## 2. 목표 (Goal)
-- **주요 목표**: 프로젝트를 통해 달성할 목표는 ~ 입니다
-- **성공 지표**: 
-- **기대 효과**: 
-
-## 3. 원칙 (Tenets)
-- **방향성**: 이런 방향성과 기조를 갖고 실행할 겁니다
-- **핵심 가치**: 
-- **운영 원칙**: 
-
-## 4. 현재 사업 현황 (State of Business)
-- **현재 매출**: 현재 회사 매출/팀 목표 달성/비즈니스 상황은 ~ 이러이러 합니다
-- **팀 목표 달성률**: 
-- **비즈니스 상황**: 
-
-## 5. 사업을 진행하면서 배운 점 (Lesson Learned)
-- **성공 요소**: 사업에 어떤 요소와 역량을 투입해 이런 시도를 했는데 잘한 것은 이렇습니다
-- **실패 요소**: 실패한 것은 이렇습니다
-- **원인 분석**: 원인은 ~ 이런 것입니다
-
-## 6. 전략적 우선 순위 (Strategic Priority)
-- **실행 계획**: 그래서 목표를 달성하기 위해 이렇게 할 계획입니다
-- **우선순위**: 
-- **리소스 배분**: """,
-
-        "피터 드러커 의사결정 분석": """# 피터 드러커 의사결정 레시피 기반 분석
-
-## 1. 의사결정 → 행동 전환 시 고려사항
-
-### 견해의 중요성 (사실보다 견해가 먼저)
-- **핵심 견해**: 사실은 없다. 사건 자체는 사실이 아니다. 결국 모든 것은 '견해'(의견)에서 출발한다
-- **주요 의견**: 
-- **관점 정리**: 
-
-### 실행을 위한 4가지 질문
-- **인지**: 이 결정을 알아야 하는 사람은?
-- **행동**: 어떤 행동을 해야하는가?
-- **책임**: 누가 그것을 해야하는가?
-- **도움**: 그 행동을 '할 수' 있도록 하기 위한 행동은 어떤 것인가?
-
-## 2. '선택과 집중' - 불필요 과업 제거
-
-### 제거해야 할 활동
-- **비생산적 활동**: "이 일은 아직도 계속 할 만한 가치가 있는 일인가?"
-- **과거 성공의 함정**: 어제의 성공을 거두었던 활동이 이미 비생산적인 것으로 판명된 경우
-- **위험한 활동**: 본래 잘 진행될 것이었는데, 어떤 이유에서인지 성과를 거두지 못한 활동
-
-### 집중해야 할 활동
-- **핵심 과업**: 성공적으로 수행한다면 자신과 조직 성과를 향상시킬 수 있는 소수 과업
-- **새로운 기회**: 
-- **우선순위**: 
-
-## 3. 우선순위 결정의 용기 (분석이 아니라 용기)
-- **미래 지향**: 과거가 아니라 미래를 판단 기준으로
-- **기회 초점**: 문제가 아니라 기회에 초점
-- **독자적 방향**: 자신의 독자적인 방향 선택 - 인기를 누리는 것에 편승하지 않음
-- **높은 목표**: 무난하고 쉬운 목표보다는 확연한 차이를 낼수 있는 높은 목표
-
-## 4. 중요한 질문 5가지 도출
-1. **질문 1**: 
-2. **질문 2**: 
-3. **질문 3**: 
-4. **질문 4**: 
-5. **질문 5**: """,
-
-        "GS 김진아 VP 리포트": """# (주)GS 김진아 VP님을 위한 리포트
-
-## 리포트의 목적
-- **목적**: 전사 AX를 추진하는 임원의 관점에서 기술적 / 사업적 / 규제적 의사결정 포인트를 도출하고 싶음
-- **대상**: 
-- **범위**: 
-
-## 변수
-- **지정한 주제**: 
-- **기간**: 
-- **주요 변수**: 
-
-## Executive Summary (One Page)
-- **핵심 메시지**: 
-- **주요 발견사항**: 
-- **권고사항**: 
-
-## 기술적 의사결정 포인트
-- **기술 동향**: 
-- **기술적 리스크**: 
-- **기술 선택지**: 
-- **권장 기술 방향**: 
-
-## 사업적 의사결정 포인트
-- **시장 기회**: 
-- **비즈니스 모델**: 
-- **수익성 분석**: 
-- **경쟁 우위**: 
-
-## 규제적 의사결정 포인트
-- **규제 환경**: 
-- **컴플라이언스 이슈**: 
-- **규제 리스크**: 
-- **대응 전략**: 
-
-## 결론 및 권고사항
-- **핵심 권고**: 
-- **실행 계획**: 
-- **다음 단계**: """,
-
-        "Task 미팅 관리": """# Task 미팅 관리 템플릿
-
-## 요약
-**회의 주요 내용을 불렛 포인트로 요약 (각 불렛 포인트는 100~150자 정도)**
-- **주요 논의사항 1**: 
-- **주요 논의사항 2**: 
-- **주요 논의사항 3**: 
-- **주요 결정사항**: 
-
-## Key Action Items
-**액션 아이템과 그 목적을 정리 (150자 이내로 간결하게 '음슴'체)**
-- **액션 아이템 1**: 
-- **액션 아이템 2**: 
-- **액션 아이템 3**: 
-
-## Ownership & Responsibilities
-**액션 아이템별로 각 담당자(개인·팀)에게 부여된 오너십을 간결하게 정리**
-- **담당자 1**: 
-- **담당자 2**: 
-- **팀 책임**: 
-
-## Next Steps & Follow-Up
-**앞으로 진행할 주요 단계 (예정 일정, 추가 논의 포인트 등) 핵심만 정리**
-- **다음 단계 1**: [우선순위: 높음] [마감일: ] 
-- **다음 단계 2**: [우선순위: 중간] [마감일: ]
-- **추가 논의**: [의존관계: ]
-- **후속 미팅**: [예정일: ]"""
-    }
-    return templates
 
 def read_file_content(uploaded_file):
     """Read content from uploaded file based on file type"""
@@ -290,6 +158,7 @@ def read_file_content(uploaded_file):
         
     except Exception as e:
         return f"파일 읽기 중 오류가 발생했습니다: {str(e)}"
+
 
 def upload_to_miso_api(document_name, processed_text):
     """Upload processed text to MISO API as a document"""
@@ -380,33 +249,12 @@ def upload_to_miso_api(document_name, processed_text):
             "demo": False
         }
 
+
 def process_with_llm(content, template):
     """Process file content using OpenAI LLM with template"""
     # Check if API key is properly configured
     if not openai.api_key or openai.api_key == "demo_key":
-        return f"""[데모 모드 - 실제 OpenAI API 키가 필요합니다]
-
-템플릿에 따른 내용 정리 예시:
-
-1. 프로젝트 개요
-   - 업로드된 파일: {content[:100]}...
-
-2. 주요 기능
-   - 파일에서 추출된 기능들이 여기에 표시됩니다
-
-3. 기술 스택
-   - 분석된 기술 스택이 표시됩니다
-
-4. 예상 일정
-   - AI가 분석한 예상 일정이 표시됩니다
-
-5. 리스크 요소
-   - 식별된 리스크들이 표시됩니다
-
-6. 성공 지표
-   - 정의된 성공 지표들이 표시됩니다
-
-실제 사용을 위해서는 .env 파일에 OPENAI_API_KEY를 설정해주세요."""
+        return DEMO_CONTENT_TEMPLATE.format(content_preview=content[:100])
     
     try:
         response = openai.chat.completions.create(
@@ -422,6 +270,7 @@ def process_with_llm(content, template):
     except Exception as e:
         return f"LLM 처리 중 오류가 발생했습니다: {str(e)}"
 
+
 def generate_role_based_email(project_name, context_info, project_data):
     """Generate role-based email using project data and 3-category context information"""
     
@@ -430,63 +279,31 @@ def generate_role_based_email(project_name, context_info, project_data):
     
     # Check if API key is properly configured
     if not openai.api_key or openai.api_key == "demo_key":
-        demo_email = f"""
-제목: [{context_info['meeting_subject']}] {context_info['organization']} 관점에서의 미팅 분석 및 제안
-
-안녕하세요,
-
-{context_info['person_name']}입니다.
-
-**1. 주제 (미팅 소속 프로젝트):** {context_info['meeting_subject']}
-
-**2. 조직 (소속 조직):** {context_info['organization']}
-{context_info['org_role_description']}
-
-**3. 담당자 역할:** 
-{context_info['person_role']}
-
-**{project_name} TF 프로젝트 미팅 분석:**
-- 미팅 기록을 바탕으로 한 핵심 인사이트
-- {context_info['organization']} 관점에서의 전략적 제안
-- {context_info['meeting_subject']} 프로젝트 연관성 분석
-- 실행 가능한 액션 플랜
-
-실제 사용을 위해서는 .env 파일에 OPENAI_API_KEY를 설정해주세요.
-
-감사합니다.
-{context_info['person_name']} ({context_info['organization']}) 드림
-        """
-        return demo_email
+        return DEMO_EMAIL_TEMPLATE.format(
+            meeting_subject=context_info['meeting_subject'],
+            organization=context_info['organization'],
+            person_name=context_info['person_name'],
+            org_role_description=context_info['org_role_description'],
+            person_role=context_info['person_role'],
+            project_name=project_name
+        )
     
     try:
-        system_prompt = f"""
-당신은 {context_info['person_name']}이고, {context_info['organization']}에 소속되어 있습니다.
-
-**1. 주제 컨텍스트:** 
-이 미팅은 '{context_info['meeting_subject']}' 프로젝트 소속입니다.
-
-**2. 조직 역할:**
-{context_info['org_role_description']}
-
-**3. 개인 역할:**
-{context_info['person_role']}
-
-위의 3가지 카테고리 정보를 바탕으로, 미팅 기록을 분석하여 전문적이고 실용적인 이메일을 작성해주세요. 
-- 미팅 주제와 소속 프로젝트의 연관성을 고려하세요
-- 조직의 관점에서 중요한 인사이트를 도출하세요
-- 담당자 개인의 역할과 책임에 맞는 실행 가능한 제안을 포함하세요
-- 이메일은 정중하고 전문적인 톤으로 작성되어야 하며, 제목과 본문을 포함해야 합니다
-        """
+        system_prompt = SYSTEM_PROMPT_TEMPLATE.format(
+            person_name=context_info['person_name'],
+            organization=context_info['organization'],
+            meeting_subject=context_info['meeting_subject'],
+            org_role_description=context_info['org_role_description'],
+            person_role=context_info['person_role']
+        )
         
-        user_prompt = f"""
-TF 프로젝트명: {project_name}
-미팅 소속 프로젝트: {context_info['meeting_subject']}
-
-미팅 기록 및 프로젝트 정보:
-{combined_content}
-
-위 정보를 바탕으로 {context_info['organization']} 소속 {context_info['person_name']}의 관점에서 이메일을 작성해주세요.
-        """
+        user_prompt = USER_PROMPT_TEMPLATE.format(
+            project_name=project_name,
+            meeting_subject=context_info['meeting_subject'],
+            combined_content=combined_content,
+            organization=context_info['organization'],
+            person_name=context_info['person_name']
+        )
         
         response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
@@ -500,6 +317,7 @@ TF 프로젝트명: {project_name}
         return response.choices[0].message.content
     except Exception as e:
         return f"이메일 생성 중 오류가 발생했습니다: {str(e)}"
+
 
 # Main App
 def main():
@@ -516,10 +334,11 @@ def main():
         st.header("Navigation")
         tab_selection = st.radio(
             "기능 선택:",
-            ["오프라인 미팅 STT 기록 업로드", "역할별 이메일 생성", "TF명별 문서 현황"]
+            ["오프라인 미팅 기록 업로드", "담당자별 맞춤 요약", "TF명별 문서 현황"],
+            index=0  # 첫 번째 탭을 기본값으로 설정
         )
     
-    if tab_selection == "오프라인 미팅 STT 기록 업로드":
+    if tab_selection == "오프라인 미팅 기록 업로드":
         st.header("오프라인 미팅 STT 기록 업로드")
         
         col1, col2 = st.columns([1, 1])
@@ -639,6 +458,9 @@ def main():
                         template
                     )
                     
+                    # Show success message for local save
+                    st.success(f"✅ '{project_name}' 프로젝트에 저장 완료")
+                    
                     # MISO API 업로드 (조용히 실행)
                     if upload_to_miso:
                         miso_result = upload_to_miso_api(generated_filename, processed_content)
@@ -649,8 +471,8 @@ def main():
             else:
                 st.error("모든 필드를 입력해주세요.")
     
-    elif tab_selection == "역할별 이메일 생성":
-        st.header("역할별 맞춤 이메일 생성")
+    elif tab_selection == "담당자별 맞춤 요약":
+        st.header("담당자별 맞춤 미팅 요약 이메일")
         
         col1, col2 = st.columns([1, 1])
         
@@ -683,69 +505,69 @@ def main():
                         total_docs = len(project_files)
                         st.metric("총 문서 수", total_docs)
         
-        with col2:
-            st.subheader("담당자 정보")
-            
-            # 1. 주제 (미팅이 소속된 프로젝트명)
-            st.write("**1. 주제 (미팅 소속 프로젝트명)**")
-            meeting_subject = st.text_input(
-                "이 미팅이 소속된 프로젝트명을 입력하세요",
-                placeholder="예: 채널콘 2025 기획 TF팀",
-                help="미팅이 어떤 프로젝트나 TF팀 소속인지 입력하세요"
-            )
-            
-            # 2. 조직 (담당자의 소속 조직)
-            st.write("**2. 조직 (담당자의 소속 조직)**")
-            organization_option = st.radio(
-                "조직 입력 방식:",
-                ["기본 조직 선택", "새 조직 입력"],
-                horizontal=True
-            )
-            
-            default_orgs = ["사업개발", "제품팀", "마케팅", "기획", "개발", "디자인", "경영지원"]
-            
-            if organization_option == "기본 조직 선택":
-                organization = st.selectbox(
-                    "소속 조직 선택",
-                    default_orgs,
-                    help="담당자가 소속된 정규 조직을 선택하세요"
-                )
-            else:
-                organization = st.text_input(
-                    "새 조직명",
-                    placeholder="예: 특별기획팀, 신사업TF",
-                    help="TF팀이나 새로운 조직명을 입력하세요"
-                )
-            
-            # 조직 역할 설명
-            org_role_description = st.text_area(
-                "조직의 역할과 책임을 설명해주세요",
-                value="",
-                placeholder="""예시: 채널코퍼레이션의 사업적 성공을 위한 대외 관계를 개척/관리하고 대내 기능 간 커뮤니케이터 수행
+                        with col2:
+                            st.subheader("받는 사람 정보")
+                            
+                            # 1. 주제 (미팅이 소속된 프로젝트명)
+                            st.write("**1. 주제 (미팅 소속 프로젝트명)**")
+                            meeting_subject = st.text_input(
+                                "이 미팅이 소속된 프로젝트명을 입력하세요",
+                                placeholder="예: 채널콘 2025 기획 TF팀",
+                                help="미팅이 어떤 프로젝트나 TF팀 소속인지 입력하세요"
+                            )
+                            
+                            # 2. 조직 (받는 사람의 소속 조직)
+                            st.write("**2. 조직 (받는 사람의 소속 조직)**")
+                            organization_option = st.radio(
+                                "조직 입력 방식:",
+                                ["기본 조직 선택", "새 조직 입력"],
+                                horizontal=True
+                            )
+                            
+                            default_orgs = ["사업개발", "제품팀", "마케팅", "기획", "개발", "디자인", "경영지원"]
+                            
+                            if organization_option == "기본 조직 선택":
+                                organization = st.selectbox(
+                                    "소속 조직 선택",
+                                    default_orgs,
+                                    help="담당자가 소속된 정규 조직을 선택하세요"
+                                )
+                            else:
+                                organization = st.text_input(
+                                    "새 조직명",
+                                    placeholder="예: 특별기획팀, 신사업TF",
+                                    help="TF팀이나 새로운 조직명을 입력하세요"
+                                )
+                            
+                            # 조직 역할 설명
+                            org_role_description = st.text_area(
+                                "조직의 역할과 책임을 설명해주세요",
+                                value="",
+                                placeholder="""예시: 채널코퍼레이션의 사업적 성공을 위한 대외 관계를 개척/관리하고 대내 기능 간 커뮤니케이터 수행
 
 1. 규격화되지 않고, 복잡하나 중요한 문제가 있으면 먼저 부딪혀보고 '일이 되게 만듦'(Getting Things Done)
 2. 대외) 파트너와의 관계를 다지는 tech-revenue 파트너십부터 고객사 미팅, IR 등에도 부분적 투입됨
 3. 대내) 주로 비즈 - 제품 팀간 가교 역할을 수행함""",
-                height=100,
-                help="이 조직의 핵심 역할과 책임을 설명해주세요"
-            )
-            
-            # 3. 담당자 (이름과 역할 설명)
-            st.write("**3. 담당자 (이름과 역할 설명)**")
-            person_name = st.text_input(
-                "담당자 이름",
-                placeholder="예: 문희철(henry)",
-                help="이메일을 작성할 담당자의 이름을 입력하세요"
-            )
-            
-            person_role = st.text_area(
-                "담당자의 구체적인 역할을 설명해주세요",
-                placeholder="예: 헨리는 사업개발 팀의 매니저입니다. CEO인 레드가 직속 보고라인입니다. 여러 조직(사업개발, 신사업TF)에 소속되어 있습니다.",
-                height=80,
-                help="담당자의 직책, 보고라인, 주요 업무, 복수 조직 소속 여부 등을 설명해주세요"
-            )
+                                height=100,
+                                help="이 조직의 핵심 역할과 책임을 설명해주세요"
+                            )
+                            
+                            # 3. 받는 사람 (이름과 역할 설명)
+                            st.write("**3. 받는 사람 (이름과 역할 설명)**")
+                            person_name = st.text_input(
+                                "받는 사람 이름",
+                                placeholder="예: 문희철(henry)",
+                                help="미팅 요약을 받을 담당자의 이름을 입력하세요"
+                            )
+                            
+                            person_role = st.text_area(
+                                "받는 사람의 구체적인 역할을 설명해주세요",
+                                placeholder="예: 헨리는 사업개발 팀의 매니저입니다. CEO인 레드가 직속 보고라인입니다. 여러 조직(사업개발, 신사업TF)에 소속되어 있습니다.",
+                                height=80,
+                                help="받는 사람의 직책, 보고라인, 주요 업무, 복수 조직 소속 여부 등을 설명해주세요"
+                            )
         
-        if st.button("이메일 생성", type="primary", width="stretch"):
+        if st.button("맞춤 요약 이메일 생성", type="primary", width="stretch"):
             # 필수 필드 검증
             missing_fields = []
             if not tags or not 'selected_project' in locals() or not selected_project:
@@ -755,7 +577,7 @@ def main():
             if not organization:
                 missing_fields.append("조직")
             if not person_name:
-                missing_fields.append("담당자 이름")
+                missing_fields.append("받는 사람 이름")
             
             if missing_fields:
                 st.error(f"다음 필드를 입력해주세요: {', '.join(missing_fields)}")
@@ -775,17 +597,17 @@ def main():
                         "person_role": person_role
                     }
                     
-                    with st.spinner(f"{person_name}({organization}) 관점에서 '{selected_project}' TF 프로젝트 기반 이메일을 생성중입니다..."):
+                    with st.spinner(f"{person_name}({organization})님을 위한 '{selected_project}' TF 프로젝트 맞춤 요약을 생성중입니다..."):
                         email_content = generate_role_based_email(
                             selected_project, 
                             context_info, 
                             project_files
                         )
                         
-                        st.success("이메일이 성공적으로 생성되었습니다!")
+                        st.success("맞춤 요약 이메일이 성공적으로 생성되었습니다!")
                         
                         # Display email
-                        st.subheader(f"{person_name}({organization})의 '{selected_project}' TF 프로젝트 기반 이메일")
+                        st.subheader(f"{person_name}({organization})님을 위한 '{selected_project}' TF 프로젝트 맞춤 요약")
                         st.markdown("---")
                         st.markdown(email_content)
                         
@@ -914,6 +736,7 @@ def main():
     # Footer
     st.markdown("---")
     st.markdown("**TF Project Manager** | Made with Streamlit")
+
 
 if __name__ == "__main__":
     main()
