@@ -512,7 +512,7 @@ def main():
                             st.write("**1. 주제 (미팅 소속 프로젝트명)**")
                             meeting_subject = st.text_input(
                                 "이 미팅이 소속된 프로젝트명을 입력하세요",
-                                placeholder="예: 채널콘 2025 기획 TF팀",
+                                placeholder="예: GS PLAI HACKATHON 기획 TF팀",
                                 help="미팅이 어떤 프로젝트나 TF팀 소속인지 입력하세요"
                             )
                             
