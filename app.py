@@ -29,6 +29,11 @@ MISO_API_KEY = os.getenv("MISO_API_KEY", "")
 MISO_DATASET_ID = os.getenv("MISO_DATASET_ID", "")
 MISO_BASE_URL = "https://api.holdings.miso.gs/ext/v1"
 
+# Channel.io API configuration
+CHANNEL_API_URL = os.getenv("CHANNEL_API_URL", "")
+CHANNEL_ACCESS_KEY = os.getenv("CHANNEL_ACCESS_KEY", "")
+CHANNEL_ACCESS_SECRET = os.getenv("CHANNEL_ACCESS_SECRET", "")
+
 # Page configuration
 st.set_page_config(
     page_title="TF Project Manager & Email Generator",
@@ -247,6 +252,48 @@ def upload_to_miso_api(document_name, processed_text):
             "success": False,
             "message": f"MISO API 호출 중 예상치 못한 오류 발생: {str(e)}",
             "demo": False
+        }
+
+
+def send_to_channel(email_content, person_name, project_name):
+    """Send email content to Channel.io group"""
+    try:
+        headers = {
+            "accept": "application/json",
+            "x-access-key": CHANNEL_ACCESS_KEY,
+            "x-access-secret": CHANNEL_ACCESS_SECRET,
+            "Content-Type": "application/json"
+        }
+        
+        # Create message for Channel.io
+        message_text = f"{person_name}님을 위한 {project_name} TF 프로젝트 맞춤 요약이 생성되었습니다.\n\n{email_content}"
+        
+        payload = {
+            "blocks": [
+                {
+                    "type": "text",
+                    "value": message_text
+                }
+            ]
+        }
+        
+        response = requests.post(CHANNEL_API_URL, headers=headers, json=payload, timeout=10)
+        
+        if response.status_code == 200 or response.status_code == 201:
+            return {
+                "success": True,
+                "message": "채널 방에 성공적으로 전송되었습니다!"
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"채널 전송 실패: {response.status_code} - {response.text}"
+            }
+            
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"채널 전송 중 오류 발생: {str(e)}"
         }
 
 
@@ -567,6 +614,14 @@ def main():
                                 help="받는 사람의 직책, 보고라인, 주요 업무, 복수 조직 소속 여부 등을 설명해주세요"
                             )
         
+        # Channel.io 전송 옵션
+        st.subheader("📱 채널 방 자동 전송")
+        send_to_channel_option = st.checkbox(
+            "생성된 요약을 채널 방에 자동 전송하기",
+            value=True,
+            help="이메일 생성 후 자동으로 채널 방에 메시지를 전송합니다"
+        )
+        
         if st.button("맞춤 요약 이메일 생성", type="primary", width="stretch"):
             # 필수 필드 검증
             missing_fields = []
@@ -605,6 +660,15 @@ def main():
                         )
                         
                         st.success("맞춤 요약 이메일이 성공적으로 생성되었습니다!")
+                        
+                        # Send to Channel.io if option is enabled
+                        if send_to_channel_option:
+                            with st.spinner("채널 방에 전송 중..."):
+                                channel_result = send_to_channel(email_content, person_name, selected_project)
+                                if channel_result["success"]:
+                                    st.success(f"📱 {channel_result['message']}")
+                                else:
+                                    st.warning(f"⚠️ {channel_result['message']}")
                         
                         # Display email
                         st.subheader(f"{person_name}({organization})님을 위한 '{selected_project}' TF 프로젝트 맞춤 요약")
