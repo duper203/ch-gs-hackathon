@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 import openai
+import requests
 from dotenv import load_dotenv
 import pandas as pd
 import PyPDF2
@@ -15,6 +16,11 @@ load_dotenv()
 
 # Configure OpenAI
 openai.api_key = os.getenv("OPENAI_API_KEY", "demo_key")
+
+# Configure MISO API
+MISO_API_KEY = os.getenv("MISO_API_KEY", "")
+MISO_DATASET_ID = os.getenv("MISO_DATASET_ID", "")
+MISO_BASE_URL = "https://api.holdings.miso.gs/ext/v1"
 
 # Page configuration
 st.set_page_config(
@@ -38,7 +44,8 @@ def save_project_file(project_name, filename, content, template_used):
     
     # Save with convention: 날짜_sync_번호
     today = datetime.now().strftime('%Y%m%d')
-    file_path = project_dir / f"{today}_sync_{sync_number}.txt"
+    generated_filename = f"{today}_sync_{sync_number}"
+    file_path = project_dir / f"{generated_filename}.txt"
     
     # Create metadata
     metadata = {
@@ -47,13 +54,14 @@ def save_project_file(project_name, filename, content, template_used):
         "processed_at": datetime.now().isoformat(),
         "content": content,
         "sync_number": sync_number,
-        "date": today
+        "date": today,
+        "generated_filename": generated_filename
     }
     
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, ensure_ascii=False, indent=2)
     
-    return file_path
+    return file_path, generated_filename
 
 def get_project_files(project_name):
     """Get all files for a specific project"""
@@ -283,6 +291,95 @@ def read_file_content(uploaded_file):
     except Exception as e:
         return f"파일 읽기 중 오류가 발생했습니다: {str(e)}"
 
+def upload_to_miso_api(document_name, processed_text):
+    """Upload processed text to MISO API as a document"""
+    if not MISO_API_KEY or not MISO_DATASET_ID:
+        return {
+            "success": False,
+            "message": "MISO API 키 또는 데이터셋 ID가 설정되지 않았습니다.",
+            "demo": True
+        }
+    
+    try:
+        # API 연결 테스트 먼저 수행
+        test_url = f"{MISO_BASE_URL}"
+        test_response = requests.get(test_url, timeout=10)
+        
+        if test_response.status_code != 200:
+            return {
+                "success": False,
+                "message": f"MISO API 서버 연결 실패: {test_response.status_code}",
+                "demo": False
+            }
+        
+        # 실제 문서 업로드 요청
+        url = f"{MISO_BASE_URL}/datasets/{MISO_DATASET_ID}/docs/text"
+        
+        headers = {
+            "Authorization": f"Bearer {MISO_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "name": document_name,
+            "text": processed_text,
+            "indexing_type": "high_quality",
+            "process_rule": {
+                "mode": "automatic"
+            }
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            result = response.json()
+            return {
+                "success": True,
+                "message": "MISO API에 성공적으로 업로드되었습니다!",
+                "document_id": result.get("document", {}).get("id", ""),
+                "batch": result.get("batch", ""),
+                "demo": False
+            }
+        elif response.status_code == 404:
+            return {
+                "success": False,
+                "message": f"MISO API 엔드포인트를 찾을 수 없습니다. 데이터셋 ID({MISO_DATASET_ID})를 확인해주세요.",
+                "demo": False,
+                "debug_info": f"URL: {url}"
+            }
+        elif response.status_code == 401:
+            return {
+                "success": False,
+                "message": "MISO API 인증 실패. API 키를 확인해주세요.",
+                "demo": False
+            }
+        else:
+            return {
+                "success": False,
+                "message": f"MISO API 오류: {response.status_code} - {response.text[:200]}",
+                "demo": False,
+                "debug_info": f"URL: {url}"
+            }
+            
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "message": "MISO API 요청 시간 초과. 네트워크 연결을 확인해주세요.",
+            "demo": False
+        }
+    except requests.exceptions.ConnectionError:
+        return {
+            "success": False,
+            "message": "MISO API 서버에 연결할 수 없습니다. 네트워크 또는 URL을 확인해주세요.",
+            "demo": False
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"MISO API 호출 중 예상치 못한 오류 발생: {str(e)}",
+            "demo": False
+        }
+
 def process_with_llm(content, template):
     """Process file content using OpenAI LLM with template"""
     # Check if API key is properly configured
@@ -408,20 +505,9 @@ TF 프로젝트명: {project_name}
 def main():
     st.title("TF Project Manager & Email Generator")
     
-    # API Key warning
+    # API Key warning for OpenAI only
     if not openai.api_key or openai.api_key == "demo_key":
         st.warning("**데모 모드로 실행 중입니다.** 실제 LLM 기능을 사용하려면 .env 파일에 OPENAI_API_KEY를 설정해주세요.")
-        with st.expander("API 키 설정 방법"):
-            st.code("""
-# 1. .env 파일 생성
-echo "OPENAI_API_KEY=your_actual_api_key_here" > .env
-
-# 2. OpenAI API 키 발급
-# https://platform.openai.com/api-keys 에서 발급
-
-# 3. 앱 재시작
-streamlit run app.py
-            """)
     
     st.markdown("---")
     
@@ -526,6 +612,16 @@ streamlit run app.py
         else:
             template = base_template
         
+        # MISO API 업로드 옵션
+        if MISO_API_KEY and MISO_DATASET_ID:
+            upload_to_miso = st.checkbox(
+                "MISO 지식에도 업로드하기", 
+                value=False,
+                help="처리된 미팅 기록을 MISO 지식베이스에도 저장합니다"
+            )
+        else:
+            upload_to_miso = False
+        
         if st.button("미팅 기록 정리 및 저장", type="primary", width="stretch"):
             if uploaded_file and project_name and template:
                 with st.spinner("미팅 기록을 처리중입니다..."):
@@ -536,15 +632,16 @@ streamlit run app.py
                     processed_content = process_with_llm(content, template)
                     
                     # Save to project folder
-                    saved_path = save_project_file(
+                    saved_path, generated_filename = save_project_file(
                         project_name, 
                         uploaded_file.name, 
                         processed_content, 
                         template
                     )
                     
-                    st.success(f"미팅 기록이 성공적으로 처리되어 '{project_name}' 프로젝트에 저장되었습니다!")
-                    st.info(f"프로젝트: {project_name} | 저장 위치: {saved_path}")
+                    # MISO API 업로드 (조용히 실행)
+                    if upload_to_miso:
+                        miso_result = upload_to_miso_api(generated_filename, processed_content)
                     
                     # Show processed content
                     with st.expander("정리된 미팅 기록 미리보기"):
@@ -623,7 +720,8 @@ streamlit run app.py
             # 조직 역할 설명
             org_role_description = st.text_area(
                 "조직의 역할과 책임을 설명해주세요",
-                value="""채널코퍼레이션의 사업적 성공을 위한 대외 관계를 개척/관리하고 대내 기능 간 커뮤니케이터 수행
+                value="",
+                placeholder="""예시: 채널코퍼레이션의 사업적 성공을 위한 대외 관계를 개척/관리하고 대내 기능 간 커뮤니케이터 수행
 
 1. 규격화되지 않고, 복잡하나 중요한 문제가 있으면 먼저 부딪혀보고 '일이 되게 만듦'(Getting Things Done)
 2. 대외) 파트너와의 관계를 다지는 tech-revenue 파트너십부터 고객사 미팅, IR 등에도 부분적 투입됨
